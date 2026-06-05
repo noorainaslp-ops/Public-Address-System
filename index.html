@@ -3,190 +3,191 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HearLink PA - Media Buffer Bridge</title>
+    <title>HearLink PA - Forced Phone Speaker Box</title>
     <style>
         :root {
-            --bg: #090d16; --card-bg: #121b2e; --text: #f8fafc;
-            --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --border: #1e293b;
+            --bg: #090d16;
+            --card-bg: #111a2e;
+            --text: #f8fafc;
+            --primary: #eab308;
+            --success: #10b981;
+            --danger: #ef4444;
+            --border: #1e293b;
         }
-        body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; user-select: none; }
-        .pa-container { background: var(--card-bg); border: 2px solid var(--border); border-radius: 24px; padding: 25px; width: 90%; max-width: 430px; box-sizing: border-box; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
-        .app-title { font-size: 1.6rem; font-weight: 900; margin-bottom: 4px; color: var(--primary); }
-        .app-subtitle { font-size: 0.8rem; color: #64748b; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px; }
-        .matrix-box { background: #090d16; border: 1px solid var(--border); border-radius: 16px; padding: 15px; margin-bottom: 25px; text-align: left; }
-        .matrix-title { font-size: 0.85rem; font-weight: 800; color: #94a3b8; margin-bottom: 12px; text-transform: uppercase; }
-        .radio-label { display: flex; align-items: center; gap: 12px; font-size: 0.95rem; font-weight: 700; color: #e2e8f0; margin: 12px 0; cursor: pointer; padding: 8px; border-radius: 8px; }
-        .mic-btn { width: 100%; padding: 16px; border-radius: 14px; border: none; background: var(--danger); color: white; font-size: 1.1rem; font-weight: 800; cursor: pointer; outline: none; margin-bottom: 20px; }
-        .mic-btn.active { background: var(--success); }
-        .slider-container { margin: 20px 0; text-align: left; }
-        .slider-label { display: flex; justify-content: space-between; font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; color: #94a3b8; }
-        .vol-slider { width: 100%; -webkit-appearance: none; appearance: none; height: 10px; border-radius: 5px; background: #090d16; outline: none; cursor: pointer; }
-        .vol-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: appearance; width: 20px; height: 20px; border-radius: 50%; background: var(--primary); cursor: pointer; }
-        .status-badge { display: inline-block; padding: 6px 14px; border-radius: 20px; background: #090d16; font-size: 0.8rem; font-weight: 700; color: #64748b; border: 1px solid var(--border); }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            user-select: none;
+        }
+        .pa-container {
+            background: var(--card-bg);
+            border: 2px solid var(--border);
+            border-radius: 24px;
+            padding: 25px;
+            width: 90%;
+            max-width: 400px;
+            box-sizing: border-box;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        }
+        .app-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin-bottom: 4px;
+            color: var(--primary);
+        }
+        .app-subtitle {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .mic-btn {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: none;
+            background: var(--danger);
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 800;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+            margin-bottom: 25px;
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+        }
+        .mic-btn.active {
+            background: var(--success);
+            box-shadow: 0 0 0 20px rgba(16, 185, 129, 0.15);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: #090d16;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #64748b;
+            border: 1px solid var(--border);
+            margin-top: 15px;
+        }
+        .notice-text {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
 
     <div class="pa-container">
         <div class="app-title">पब्लिक एड्रेस सिस्टम</div>
-        <div class="app-subtitle">Media Output Channel Synchronizer</div>
+        <div class="app-subtitle">Forced Media Channel Output</div>
         
-        <div class="matrix-box">
-            <div class="matrix-title">सिस्टम रूटिंग सेटअप (Setup Mode)</div>
-            <label class="radio-label">
-                <input type="radio" name="systemMatrixDirection" value="bt-mic-phone-spk" checked onchange="handleMatrixShift()">
-                🎙️ मोड A: ब्लूटूथ माइक ➔ 🔊 फोन स्पीकर
-            </label>
-            <label class="radio-label">
-                <input type="radio" name="systemMatrixDirection" value="phone-mic-bt-spk" onchange="handleMatrixShift()">
-                🎙️ मोड B: फोन माइक ➔ 🔊 ब्लूटूथ स्पीकर (Media-Forced)
-            </label>
-        </div>
-        
-        <button id="micToggleButton" class="mic-btn" onclick="toggleCombinedPAEngine()">सिस्टम चालू करें</button>
-        
-        <div class="slider-container">
-            <div class="slider-label">
-                <span>आवाज़ नियंत्रण</span>
-                <span id="volumeDisplayValue">100%</span>
-            </div>
-            <input type="range" id="volumeGainSlider" class="vol-slider" min="0" max="150" value="100" oninput="adjustSystemLoudness(this.value)">
-        </div>
+        <button id="micToggleButton" class="mic-btn" onclick="togglePAEngine()">सिस्टम चालू करें</button>
         
         <div id="statusBadgeDisplay" class="status-badge">स्थिति: बंद (Offline)</div>
+        
+        <div class="notice-text">
+            नोट: यह मोड ब्लूटूथ कॉल बाईपास का उपयोग करके आवाज को सीधे आपके फोन के मुख्य लाउडस्पीकर से बाहर भेजता है।
+        </div>
     </div>
 
 <script>
     let rawAudioContext = null;
-    let microphoneStreamNode = null;
-    let audioScriptProcessor = null;
-    let lowPassFilterNode = null;
-    let highPassFilterNode = null;
-    let dynamicCompressorNode = null;
-    let volumeGainNode = null;
     let currentMediaStream = null;
-    let isPAEngineRunning = false;
+    let audioScriptProcessor = null;
+    let microphoneSourceNode = null;
+    let isPAActive = false;
 
-    async function toggleCombinedPAEngine() {
+    async function togglePAEngine() {
         const actionButton = document.getElementById('micToggleButton');
         const statusBadge = document.getElementById('statusBadgeDisplay');
-        const selectedMode = document.querySelector('input[name="systemMatrixDirection"]:checked').value;
 
-        if (!isPAEngineRunning) {
+        if (!isPAActive) {
             try {
-                let audioConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
-
-                // मोड B: यहाँ हम डिवाइस के केवल इंटरनल डिफ़ॉल्ट माइक को हार्ड-लॉक करते हैं
-                if (selectedMode === "phone-mic-bt-spk") {
-                    const devices = await navigator.mediaDevices.enumerateDevices();
-                    const builtInMic = devices.find(d => d.kind === 'audioinput' && (d.label.toLowerCase().includes('built-in') || d.label.toLowerCase().includes('communication') || d.label.toLowerCase().includes('default')));
-                    if (builtInMic) {
-                        audioConstraints.deviceId = { exact: builtInMic.deviceId };
-                    }
-                }
-
-                currentMediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
+                // Request streaming parameters optimized for live speech tracking
+                currentMediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    },
+                    video: false
+                });
 
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                // Force raw execution context parameters hint to match standard media play profiles
+                rawAudioContext = new AudioContextClass({ latencyHint: 'playback' });
+
+                microphoneSourceNode = rawAudioContext.createMediaStreamSource(currentMediaStream);
                 
-                // पिछला सफल समाधान: 'playback' लेटेंसी हिंट जो फोन को कॉल स्टेट से हटाकर मीडिया प्लेयर स्टेट में लाता है
-                const contextHint = (selectedMode === "phone-mic-bt-spk") ? 'playback' : 'interactive';
-                rawAudioContext = new AudioContextClass({ latencyHint: contextHint });
-
-                microphoneStreamNode = rawAudioContext.createMediaStreamSource(currentMediaStream);
-                highPassFilterNode = rawAudioContext.createBiquadFilter();
-                lowPassFilterNode = rawAudioContext.createBiquadFilter();
-                dynamicCompressorNode = rawAudioContext.createDynamicsCompressor();
-                volumeGainNode = rawAudioContext.createGain();
-
-                // वोकल बैंडपास फ़िल्टर
-                highPassFilterNode.type = "highpass";
-                highPassFilterNode.frequency.setValueAtTime(350, rawAudioContext.currentTime);
-                lowPassFilterNode.type = "lowpass";
-                lowPassFilterNode.frequency.setValueAtTime(3200, rawAudioContext.currentTime);
-
-                // एंटी-श्रीक क्लैंप पैरामीटर्स (टेल क्लिपिंग को रोकने के लिए रिलीज = 0)
-                dynamicCompressorNode.threshold.setValueAtTime(-5, rawAudioContext.currentTime);
-                dynamicCompressorNode.knee.setValueAtTime(15, rawAudioContext.currentTime);
-                dynamicCompressorNode.ratio.setValueAtTime(20, rawAudioContext.currentTime);
-                dynamicCompressorNode.attack.setValueAtTime(0.002, rawAudioContext.currentTime);
-                dynamicCompressorNode.release.setValueAtTime(0.000, rawAudioContext.currentTime);
-
-                const currentSliderValue = document.getElementById('volumeGainSlider').value;
-                volumeGainNode.gain.setValueAtTime(currentSliderValue / 100, rawAudioContext.currentTime);
-
-                // पिछला सफल समाधान: ScriptProcessor का उपयोग करके बफ़र डेटा को सीधे HTML5 मीडिया आउटपुट चैनल पर क्लोन करना
+                // Construct an un-buffered direct pass-through script block mapping inside memory arrays
                 audioScriptProcessor = rawAudioContext.createScriptProcessor(2048, 1, 1);
-                audioScriptProcessor.onaudioprocess = function(audioEvent) {
-                    const inputData = audioEvent.inputBuffer.getChannelData(0);
-                    const outputData = audioEvent.outputBuffer.getChannelData(0);
-                    for (let i = 0; i < inputData.length; i++) {
-                        outputData[i] = inputData[i];
+
+                audioScriptProcessor.onaudioprocess = function(audioProcessingEvent) {
+                    const inputBufferData = audioProcessingEvent.inputBuffer.getChannelData(0);
+                    const outputBufferData = audioProcessingEvent.outputBuffer.getChannelData(0);
+                    
+                    // Directly dump the binary floating points straight to hardware out channels
+                    for (let sampleIndex = 0; sampleIndex < inputBufferData.length; sampleIndex++) {
+                        outputBufferData[sampleIndex] = inputBufferData[sampleIndex];
                     }
                 };
 
-                // प्रोसेसिंग ग्राफ़ लिंक
-                microphoneStreamNode.connect(highPassFilterNode);
-                highPassFilterNode.connect(lowPassFilterNode);
-                lowPassFilterNode.connect(dynamicCompressorNode);
-                dynamicCompressorNode.connect(volumeGainNode);
-                volumeGainNode.connect(audioScriptProcessor);
+                // Connect the processing graph nodes
+                microphoneSourceNode.connect(audioScriptProcessor);
                 audioScriptProcessor.connect(rawAudioContext.destination);
 
-                // फ़ोर्स सिंक आईडी सिलेक्ट
-                if (typeof rawAudioContext.destination.setSinkId === 'function') {
-                    const outputDevices = await navigator.mediaDevices.enumerateDevices();
-                    let targetOutputDevice = null;
-
-                    if (selectedMode === "bt-mic-phone-spk") {
-                        targetOutputDevice = outputDevices.find(d => d.kind === 'audiooutput' && (d.label.toLowerCase().includes('speaker') || d.label.toLowerCase().includes('built-in') || d.deviceId === 'default') && !d.label.toLowerCase().includes('bluetooth'));
-                    } else {
-                        // मोड B के लिए ब्लूटूथ के मीडिया प्लेबैक या स्टीरियो (A2DP) चैनल को फ़ोर्स सिलेक्ट करें
-                        targetOutputDevice = outputDevices.find(d => d.kind === 'audiooutput' && (d.label.toLowerCase().includes('bluetooth') || d.label.toLowerCase().includes('headset') || d.label.toLowerCase().includes('headphones') || d.label.toLowerCase().includes('audio')));
-                    }
-
-                    if (targetOutputDevice) {
-                        await rawAudioContext.destination.setSinkId(targetOutputDevice.deviceId);
-                    }
-                }
-
-                isPAEngineRunning = true;
+                isPAActive = true;
                 actionButton.textContent = "सिस्टम बंद करें";
                 actionButton.classList.add('active');
-                statusBadge.textContent = selectedMode === "bt-mic-phone-spk" ? "स्थिति: मोड A सक्रिय" : "स्थिति: मोड B सक्रिय (Media Engine Locked)";
+                statusBadge.textContent = "स्थिति: लाइव (PHONE SPEAKER FORCE)";
                 statusBadge.style.borderColor = "var(--success)";
                 statusBadge.style.color = "var(--success)";
 
             } catch (error) {
-                console.error("Routing lock violation: ", error);
-                alert("डिवाइस एरर। कृपया ब्लूटूथ चालू रखें।");
+                console.error("Failed to intercept hardware audio routing lines: ", error);
+                alert("माइक्रोफोन अनुमति प्रदान करें।");
             }
         } else {
-            shutdownCombinedPAEngine();
+            shutdownPAEngine();
         }
     }
 
-    function shutdownCombinedPAEngine() {
+    function shutdownPAEngine() {
         const actionButton = document.getElementById('micToggleButton');
         const statusBadge = document.getElementById('statusBadgeDisplay');
-        if (microphoneStreamNode) microphoneStreamNode.disconnect();
-        if (highPassFilterNode) highPassFilterNode.disconnect();
-        if (lowPassFilterNode) lowPassFilterNode.disconnect();
-        if (dynamicCompressorNode) dynamicCompressorNode.disconnect();
-        if (volumeGainNode) volumeGainNode.disconnect();
+
+        if (microphoneSourceNode) microphoneSourceNode.disconnect();
         if (audioScriptProcessor) audioScriptProcessor.disconnect();
-        if (currentMediaStream) currentMediaStream.getTracks().forEach(track => track.stop());
-        if (rawAudioContext) { rawAudioContext.close(); rawAudioContext = null; }
-        isPAEngineRunning = false;
+        
+        if (currentMediaStream) {
+            currentMediaStream.getTracks().forEach(track => track.stop());
+        }
+        if (rawAudioContext) {
+            rawAudioContext.close();
+            rawAudioContext = null;
+        }
+
+        isPAActive = false;
         actionButton.textContent = "सिस्टम चालू करें";
         actionButton.classList.remove('active');
         statusBadge.textContent = "स्थिति: बंद (Offline)";
         statusBadge.style.borderColor = "var(--border)";
         statusBadge.style.color = "#64748b";
     }
-
-    function handleMatrixShift() { if (isPAEngineRunning) { shutdownCombinedPAEngine(); toggleCombinedPAEngine(); } }
-    function adjustSystemLoudness(sliderValue) { document.getElementById('volumeDisplayValue').textContent = sliderValue + "%"; if (rawAudioContext && volumeGainNode && isPAEngineRunning) { volumeGainNode.gain.setValueAtTime(sliderValue / 100, rawAudioContext.currentTime); } }
 </script>
 </body>
 </html>
