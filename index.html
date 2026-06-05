@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HearLink PA - Hybrid Audio Bridge</title>
+    <title>HearLink PA - Bluetooth Route Locked</title>
     <style>
         :root {
             --bg: #090d16;
@@ -50,31 +50,6 @@
             margin-bottom: 25px;
             text-transform: uppercase;
             letter-spacing: 1px;
-        }
-        .mode-box {
-            background: #090d16;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 15px;
-            margin-bottom: 25px;
-            text-align: left;
-        }
-        .mode-title {
-            font-size: 0.85rem;
-            font-weight: 800;
-            color: #94a3b8;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
-        .radio-label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #e2e8f0;
-            margin: 8px 0;
-            cursor: pointer;
         }
         .mic-btn {
             width: 100%;
@@ -140,19 +115,7 @@
 
     <div class="pa-container">
         <div class="app-title">पब्लिक एड्रेस सिस्टम</div>
-        <div class="app-subtitle">Hybrid Wireless Audio Bridge</div>
-        
-        <div class="mode-box">
-            <div class="mode-title">हार्डवेयर रूटिंग चयन (Hardware Path)</div>
-            <label class="radio-label">
-                <input type="radio" name="hardwareRoute" value="bt-to-phone" checked onchange="handleRouteShift()">
-                    🎙️ ब्लूटूथ माइक ➔ 🔊 फोन स्पीकर
-            </label>
-            <label class="radio-label">
-                <input type="radio" name="hardwareRoute" value="phone-to-bt" onchange="handleRouteShift()">
-                    🎙️ फोन माइक ➔ 🔊 ब्लूटूथ हेडफोन
-            </label>
-        </div>
+        <div class="app-subtitle">Direct Bluetooth Force Route</div>
         
         <button id="micToggleButton" class="mic-btn" onclick="togglePublicAddressEngine()">सिस्टम चालू करें</button>
         
@@ -183,7 +146,6 @@
 
         if (!isPublicAddressActive) {
             try {
-                // Request a hands-free communication stream profile to force low-latency SCO processing hooks
                 currentMediaStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
@@ -202,41 +164,53 @@
                 dynamicCompressorNode = rawAudioContext.createDynamicsCompressor();
                 volumeGainNode = rawAudioContext.createGain();
 
-                // Human Vocal Bandpass Filtering (300Hz - 3400Hz)
+                // Vocal Bandpass Optimization Filtering
                 highPassFilterNode.type = "highpass";
                 highPassFilterNode.frequency.setValueAtTime(300, rawAudioContext.currentTime);
-
                 lowPassFilterNode.type = "lowpass";
                 lowPassFilterNode.frequency.setValueAtTime(3400, rawAudioContext.currentTime);
 
-                // ZERO-RELEASE DYNAMICS COMPRESSOR:
-                // Acts purely as an anti-shriek safety barrier without attenuating trailing speech words
-                dynamicCompressorNode.threshold.setValueAtTime(-3, rawAudioContext.currentTime);  // High safety ceiling
+                // Zero-Release Safety Compressor
+                dynamicCompressorNode.threshold.setValueAtTime(-3, rawAudioContext.currentTime);
                 dynamicCompressorNode.knee.setValueAtTime(10, rawAudioContext.currentTime);
-                dynamicCompressorNode.ratio.setValueAtTime(20, rawAudioContext.currentTime);      // Instant hard clamp on spikes
-                dynamicCompressorNode.attack.setValueAtTime(0.001, rawAudioContext.currentTime); // Reactive 1ms engagement
-                dynamicCompressorNode.release.setValueAtTime(0.000, rawAudioContext.currentTime); // DROPPED TO ZERO: Restores full volume instantly
+                dynamicCompressorNode.ratio.setValueAtTime(20, rawAudioContext.currentTime);
+                dynamicCompressorNode.attack.setValueAtTime(0.001, rawAudioContext.currentTime);
+                dynamicCompressorNode.release.setValueAtTime(0.000, rawAudioContext.currentTime);
 
                 const currentSliderValue = document.getElementById('volumeGainSlider').value;
                 volumeGainNode.gain.setValueAtTime(currentSliderValue / 100, rawAudioContext.currentTime);
 
-                // Pipe Linkage Connection Graph
+                // Connect the Audio Node Processing Graph
                 microphoneStreamNode.connect(highPassFilterNode);
                 highPassFilterNode.connect(lowPassFilterNode);
                 lowPassFilterNode.connect(dynamicCompressorNode);
                 dynamicCompressorNode.connect(volumeGainNode);
                 volumeGainNode.connect(rawAudioContext.destination);
 
+                // --- CRITICAL BLUETOOTH FORCE ROUTING LAYER ---
+                // Scans the device's physical audio channels and forces output sink to Bluetooth
+                if (typeof rawAudioContext.destination.setSinkId === 'function') {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const bluetoothSpeaker = devices.find(d => 
+                        d.kind === 'audiooutput' && 
+                        (d.label.toLowerCase().includes('bluetooth') || d.label.toLowerCase().includes('headset') || d.label.toLowerCase().includes('hands-free'))
+                    );
+                    if (bluetoothSpeaker) {
+                        await rawAudioContext.destination.setSinkId(bluetoothSpeaker.deviceId);
+                        console.log("Output destination hardware locked to: " + bluetoothSpeaker.label);
+                    }
+                }
+
                 isPublicAddressActive = true;
                 actionButton.textContent = "सिस्टम बंद करें";
                 actionButton.classList.add('active');
-                statusBadge.textContent = "स्थिति: लाइव (ON AIR)";
+                statusBadge.textContent = "स्थिति: लाइव (BLUETOOTH TARGET ACTIVE)";
                 statusBadge.style.borderColor = "var(--success)";
                 statusBadge.style.color = "var(--success)";
 
             } catch (error) {
-                console.error("Audio pipeline initialization failed: ", error);
-                alert("माइक्रोफोन अनुमति प्रदान करें (Permission Denied).");
+                console.error("Audio bridge startup failed: ", error);
+                alert("माइक्रोफोन अनुमति की आवश्यकता है।");
             }
         } else {
             shutdownPAEngine();
@@ -267,14 +241,6 @@
         statusBadge.textContent = "स्थिति: बंद (Offline)";
         statusBadge.style.borderColor = "var(--border)";
         statusBadge.style.color = "#64748b";
-    }
-
-    function handleRouteShift() {
-        // If routing modes are toggled during live operation, restart the engine cleanly to sync hardware flags
-        if (isPublicAddressActive) {
-            shutdownPAEngine();
-            togglePublicAddressEngine();
-        }
     }
 
     function adjustSystemLoudness(sliderValue) {
