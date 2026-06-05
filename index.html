@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HearLink PA - Bluetooth Route Locked</title>
+    <title>HearLink PA - Speakerphone Forced</title>
     <style>
         :root {
             --bg: #090d16;
             --card-bg: #111a2e;
             --text: #f8fafc;
-            --primary: #3b82f6;
-            --success: #10b981;
+            --primary: #10b981;
             --danger: #ef4444;
             --border: #1e293b;
         }
@@ -33,7 +32,7 @@
             border-radius: 24px;
             padding: 25px;
             width: 90%;
-            max-width: 420px;
+            max-width: 400px;
             box-sizing: border-box;
             text-align: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.6);
@@ -66,7 +65,7 @@
             margin-bottom: 25px;
         }
         .mic-btn.active {
-            background: var(--success);
+            background: var(--primary);
         }
         .slider-container {
             margin: 20px 0;
@@ -115,7 +114,7 @@
 
     <div class="pa-container">
         <div class="app-title">पब्लिक एड्रेस सिस्टम</div>
-        <div class="app-subtitle">Direct Bluetooth Force Route</div>
+        <div class="app-subtitle">Forced Phone Speaker Output</div>
         
         <button id="micToggleButton" class="mic-btn" onclick="togglePublicAddressEngine()">सिस्टम चालू करें</button>
         
@@ -146,6 +145,7 @@
 
         if (!isPublicAddressActive) {
             try {
+                // Step 1: Force system constraints to fetch the active bluetooth stream
                 currentMediaStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
@@ -170,7 +170,7 @@
                 lowPassFilterNode.type = "lowpass";
                 lowPassFilterNode.frequency.setValueAtTime(3400, rawAudioContext.currentTime);
 
-                // Zero-Release Safety Compressor
+                // Zero-Release Safety Compressor Configuration
                 dynamicCompressorNode.threshold.setValueAtTime(-3, rawAudioContext.currentTime);
                 dynamicCompressorNode.knee.setValueAtTime(10, rawAudioContext.currentTime);
                 dynamicCompressorNode.ratio.setValueAtTime(20, rawAudioContext.currentTime);
@@ -180,36 +180,38 @@
                 const currentSliderValue = document.getElementById('volumeGainSlider').value;
                 volumeGainNode.gain.setValueAtTime(currentSliderValue / 100, rawAudioContext.currentTime);
 
-                // Connect the Audio Node Processing Graph
+                // Connect Node Processing Graph
                 microphoneStreamNode.connect(highPassFilterNode);
                 highPassFilterNode.connect(lowPassFilterNode);
                 lowPassFilterNode.connect(dynamicCompressorNode);
                 dynamicCompressorNode.connect(volumeGainNode);
                 volumeGainNode.connect(rawAudioContext.destination);
 
-                // --- CRITICAL BLUETOOTH FORCE ROUTING LAYER ---
-                // Scans the device's physical audio channels and forces output sink to Bluetooth
+                // --- CRITICAL PHONE SPEAKERPHONE OVERRIDE ---
+                // Scans local output components and anchors routing parameters to the main speaker chassis
                 if (typeof rawAudioContext.destination.setSinkId === 'function') {
                     const devices = await navigator.mediaDevices.enumerateDevices();
-                    const bluetoothSpeaker = devices.find(d => 
+                    const phoneInternalSpeaker = devices.find(d => 
                         d.kind === 'audiooutput' && 
-                        (d.label.toLowerCase().includes('bluetooth') || d.label.toLowerCase().includes('headset') || d.label.toLowerCase().includes('hands-free'))
+                        (d.label.toLowerCase().includes('speaker') || d.label.toLowerCase().includes('built-in') || d.deviceId === 'default') &&
+                        !d.label.toLowerCase().includes('bluetooth') && 
+                        !d.label.toLowerCase().includes('headset')
                     );
-                    if (bluetoothSpeaker) {
-                        await rawAudioContext.destination.setSinkId(bluetoothSpeaker.deviceId);
-                        console.log("Output destination hardware locked to: " + bluetoothSpeaker.label);
+                    if (phoneInternalSpeaker) {
+                        await rawAudioContext.destination.setSinkId(phoneInternalSpeaker.deviceId);
+                        console.log("Output forced back to internal speaker: " + phoneInternalSpeaker.label);
                     }
                 }
 
                 isPublicAddressActive = true;
                 actionButton.textContent = "सिस्टम बंद करें";
                 actionButton.classList.add('active');
-                statusBadge.textContent = "स्थिति: लाइव (BLUETOOTH TARGET ACTIVE)";
-                statusBadge.style.borderColor = "var(--success)";
-                statusBadge.style.color = "var(--success)";
+                statusBadge.textContent = "स्थिति: लाइव (PHONE SPEAKER OUTPUT ACTIVE)";
+                statusBadge.style.borderColor = "var(--primary)";
+                statusBadge.style.color = "var(--primary)";
 
             } catch (error) {
-                console.error("Audio bridge startup failed: ", error);
+                console.error("Audio path modification failed: ", error);
                 alert("माइक्रोफोन अनुमति की आवश्यकता है।");
             }
         } else {
