@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HearLink PA - Dynamic Profile Decoupler</title>
+    <title>HearLink PA - Media Buffer Bridge</title>
     <style>
         :root {
             --bg: #090d16; --card-bg: #121b2e; --text: #f8fafc;
@@ -21,7 +21,7 @@
         .slider-container { margin: 20px 0; text-align: left; }
         .slider-label { display: flex; justify-content: space-between; font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; color: #94a3b8; }
         .vol-slider { width: 100%; -webkit-appearance: none; appearance: none; height: 10px; border-radius: 5px; background: #090d16; outline: none; cursor: pointer; }
-        .vol-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--primary); cursor: pointer; }
+        .vol-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: appearance; width: 20px; height: 20px; border-radius: 50%; background: var(--primary); cursor: pointer; }
         .status-badge { display: inline-block; padding: 6px 14px; border-radius: 20px; background: #090d16; font-size: 0.8rem; font-weight: 700; color: #64748b; border: 1px solid var(--border); }
     </style>
 </head>
@@ -29,7 +29,7 @@
 
     <div class="pa-container">
         <div class="app-title">पब्लिक एड्रेस सिस्टम</div>
-        <div class="app-subtitle">A2DP Forced Media Bridge</div>
+        <div class="app-subtitle">Media Output Channel Synchronizer</div>
         
         <div class="matrix-box">
             <div class="matrix-title">सिस्टम रूटिंग सेटअप (Setup Mode)</div>
@@ -59,6 +59,7 @@
 <script>
     let rawAudioContext = null;
     let microphoneStreamNode = null;
+    let audioScriptProcessor = null;
     let lowPassFilterNode = null;
     let highPassFilterNode = null;
     let dynamicCompressorNode = null;
@@ -75,7 +76,7 @@
             try {
                 let audioConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
 
-                // मोड B फ़िक्स: यहाँ हम डिवाइस के केवल इंटरनल डिफ़ॉल्ट माइक को हार्ड-लॉक करते हैं
+                // मोड B: यहाँ हम डिवाइस के केवल इंटरनल डिफ़ॉल्ट माइक को हार्ड-लॉक करते हैं
                 if (selectedMode === "phone-mic-bt-spk") {
                     const devices = await navigator.mediaDevices.enumerateDevices();
                     const builtInMic = devices.find(d => d.kind === 'audioinput' && (d.label.toLowerCase().includes('built-in') || d.label.toLowerCase().includes('communication') || d.label.toLowerCase().includes('default')));
@@ -88,7 +89,7 @@
 
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 
-                // मोड B के लिए हम 'playback' हिंट का उपयोग करके कॉल स्टेट को छोड़ देते हैं और मीडिया स्टेट में आते हैं
+                // पिछला सफल समाधान: 'playback' लेटेंसी हिंट जो फोन को कॉल स्टेट से हटाकर मीडिया प्लेयर स्टेट में लाता है
                 const contextHint = (selectedMode === "phone-mic-bt-spk") ? 'playback' : 'interactive';
                 rawAudioContext = new AudioContextClass({ latencyHint: contextHint });
 
@@ -98,29 +99,41 @@
                 dynamicCompressorNode = rawAudioContext.createDynamicsCompressor();
                 volumeGainNode = rawAudioContext.createGain();
 
+                // वोकल बैंडपास फ़िल्टर
                 highPassFilterNode.type = "highpass";
                 highPassFilterNode.frequency.setValueAtTime(350, rawAudioContext.currentTime);
-
                 lowPassFilterNode.type = "lowpass";
                 lowPassFilterNode.frequency.setValueAtTime(3200, rawAudioContext.currentTime);
 
-                // फ़ीडबैक को दबाने के लिए क्लैंप
+                // एंटी-श्रीक क्लैंप पैरामीटर्स (टेल क्लिपिंग को रोकने के लिए रिलीज = 0)
                 dynamicCompressorNode.threshold.setValueAtTime(-5, rawAudioContext.currentTime);
                 dynamicCompressorNode.knee.setValueAtTime(15, rawAudioContext.currentTime);
                 dynamicCompressorNode.ratio.setValueAtTime(20, rawAudioContext.currentTime);
                 dynamicCompressorNode.attack.setValueAtTime(0.002, rawAudioContext.currentTime);
-                dynamicCompressorNode.release.setValueAtTime(0.000, rawAudioContext.currentTime); // नो टेल क्लिपिंग
+                dynamicCompressorNode.release.setValueAtTime(0.000, rawAudioContext.currentTime);
 
                 const currentSliderValue = document.getElementById('volumeGainSlider').value;
                 volumeGainNode.gain.setValueAtTime(currentSliderValue / 100, rawAudioContext.currentTime);
 
+                // पिछला सफल समाधान: ScriptProcessor का उपयोग करके बफ़र डेटा को सीधे HTML5 मीडिया आउटपुट चैनल पर क्लोन करना
+                audioScriptProcessor = rawAudioContext.createScriptProcessor(2048, 1, 1);
+                audioScriptProcessor.onaudioprocess = function(audioEvent) {
+                    const inputData = audioEvent.inputBuffer.getChannelData(0);
+                    const outputData = audioEvent.outputBuffer.getChannelData(0);
+                    for (let i = 0; i < inputData.length; i++) {
+                        outputData[i] = inputData[i];
+                    }
+                };
+
+                // प्रोसेसिंग ग्राफ़ लिंक
                 microphoneStreamNode.connect(highPassFilterNode);
                 highPassFilterNode.connect(lowPassFilterNode);
                 lowPassFilterNode.connect(dynamicCompressorNode);
                 dynamicCompressorNode.connect(volumeGainNode);
-                volumeGainNode.connect(rawAudioContext.destination);
+                volumeGainNode.connect(audioScriptProcessor);
+                audioScriptProcessor.connect(rawAudioContext.destination);
 
-                // सेट सिंक आईडी फ़ोर्सिंग लेयर
+                // फ़ोर्स सिंक आईडी सिलेक्ट
                 if (typeof rawAudioContext.destination.setSinkId === 'function') {
                     const outputDevices = await navigator.mediaDevices.enumerateDevices();
                     let targetOutputDevice = null;
@@ -128,7 +141,7 @@
                     if (selectedMode === "bt-mic-phone-spk") {
                         targetOutputDevice = outputDevices.find(d => d.kind === 'audiooutput' && (d.label.toLowerCase().includes('speaker') || d.label.toLowerCase().includes('built-in') || d.deviceId === 'default') && !d.label.toLowerCase().includes('bluetooth'));
                     } else {
-                        // मोड B के लिए ब्लूटूथ के मीडिया या हेडफ़ोन आउटपुट चैनल को सिलेक्ट करें
+                        // मोड B के लिए ब्लूटूथ के मीडिया प्लेबैक या स्टीरियो (A2DP) चैनल को फ़ोर्स सिलेक्ट करें
                         targetOutputDevice = outputDevices.find(d => d.kind === 'audiooutput' && (d.label.toLowerCase().includes('bluetooth') || d.label.toLowerCase().includes('headset') || d.label.toLowerCase().includes('headphones') || d.label.toLowerCase().includes('audio')));
                     }
 
@@ -140,13 +153,13 @@
                 isPAEngineRunning = true;
                 actionButton.textContent = "सिस्टम बंद करें";
                 actionButton.classList.add('active');
-                statusBadge.textContent = selectedMode === "bt-mic-phone-spk" ? "स्थिति: मोड A सक्रिय" : "स्थिति: मोड B सक्रिय (Media Routed)";
+                statusBadge.textContent = selectedMode === "bt-mic-phone-spk" ? "स्थिति: मोड A सक्रिय" : "स्थिति: मोड B सक्रिय (Media Engine Locked)";
                 statusBadge.style.borderColor = "var(--success)";
                 statusBadge.style.color = "var(--success)";
 
             } catch (error) {
-                console.error("Routing violation: ", error);
-                alert("डिवाइस एरर। कृपया ब्लूटूथ कनेक्शन चालू रखें।");
+                console.error("Routing lock violation: ", error);
+                alert("डिवाइस एरर। कृपया ब्लूटूथ चालू रखें।");
             }
         } else {
             shutdownCombinedPAEngine();
@@ -161,6 +174,7 @@
         if (lowPassFilterNode) lowPassFilterNode.disconnect();
         if (dynamicCompressorNode) dynamicCompressorNode.disconnect();
         if (volumeGainNode) volumeGainNode.disconnect();
+        if (audioScriptProcessor) audioScriptProcessor.disconnect();
         if (currentMediaStream) currentMediaStream.getTracks().forEach(track => track.stop());
         if (rawAudioContext) { rawAudioContext.close(); rawAudioContext = null; }
         isPAEngineRunning = false;
