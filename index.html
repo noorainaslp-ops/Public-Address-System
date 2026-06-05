@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HearLink Pro PA - Zero Latency Engine</title>
+    <title>HearLink Pro PA - Anti-Feedback Engine</title>
     <style>
         :root {
-            --bg: #0f172a;
-            --card-bg: #1e293b;
+            --bg: #0b0f19;
+            --card-bg: #151f32;
             --text: #f8fafc;
             --primary: #10b981;
-            --primary-hover: #059669;
             --danger: #ef4444;
-            --border: #334155;
+            --border: #24334d;
         }
         body {
             font-family: system-ui, -apple-system, sans-serif;
@@ -36,7 +35,7 @@
             max-width: 400px;
             box-sizing: border-box;
             text-align: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         .app-title {
             font-size: 1.6rem;
@@ -45,9 +44,11 @@
             color: var(--primary);
         }
         .app-subtitle {
-            font-size: 0.9rem;
-            color: #94a3b8;
+            font-size: 0.85rem;
+            color: #64748b;
             margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .mic-btn {
             width: 140px;
@@ -60,13 +61,13 @@
             font-weight: 800;
             cursor: pointer;
             outline: none;
-            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
             transition: all 0.2s ease;
             margin-bottom: 35px;
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
         }
         .mic-btn.active {
             background: var(--primary);
-            box-shadow: 0 0 0 20px rgba(16, 185, 129, 0.1);
+            box-shadow: 0 0 0 20px rgba(16, 185, 129, 0.15);
         }
         .slider-container {
             margin: 20px 0;
@@ -78,40 +79,37 @@
             font-weight: 700;
             font-size: 0.95rem;
             margin-bottom: 8px;
-            color: #cbd5e1;
+            color: #94a3b8;
         }
         .vol-slider {
             width: 100%;
             -webkit-appearance: none;
             appearance: none;
-            height: 12px;
-            border-radius: 6px;
-            background: var(--border);
+            height: 10px;
+            border-radius: 5px;
+            background: #0f172a;
             outline: none;
             cursor: pointer;
         }
         .vol-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             background: var(--primary);
             cursor: pointer;
-            transition: transform 0.1s;
-        }
-        .vol-slider::-webkit-slider-thumb:active {
-            transform: scale(1.2);
         }
         .status-badge {
             display: inline-block;
             padding: 6px 16px;
             border-radius: 20px;
-            background: #0f172a;
+            background: #0b0f19;
             font-size: 0.85rem;
             font-weight: 700;
-            color: #94a3b8;
+            color: #64748b;
             border: 1px solid var(--border);
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -119,16 +117,16 @@
 
     <div class="pa-container">
         <div class="app-title">पब्लिक एड्रेस सिस्टम</div>
-        <div class="app-subtitle">HearLink Live Microphone PA Node</div>
+        <div class="app-subtitle">Anti-Feedback Pro Engine</div>
         
         <button id="micToggleButton" class="mic-btn" onclick="togglePublicAddressEngine()">माइक चालू</button>
         
         <div class="slider-container">
             <div class="slider-label">
-                <span>आवाज़ नियंत्रण (Loudness)</span>
+                <span>आवाज़ नियंत्रण (Volume)</span>
                 <span id="volumeDisplayValue">100%</span>
             </div>
-            <input type="range" id="volumeGainSlider" class="vol-slider" min="0" max="200" value="100" oninput="adjustSystemLoudness(this.value)">
+            <input type="range" id="volumeGainSlider" class="vol-slider" min="0" max="150" value="100" oninput="adjustSystemLoudness(this.value)">
         </div>
         
         <div id="statusBadgeDisplay" class="status-badge">स्थिति: बंद (Offline)</div>
@@ -137,6 +135,9 @@
 <script>
     let rawAudioContext = null;
     let microphoneStreamNode = null;
+    let lowPassFilterNode = null;
+    let highPassFilterNode = null;
+    let dynamicCompressorNode = null;
     let volumeGainNode = null;
     let isPublicAddressActive = false;
 
@@ -146,48 +147,69 @@
 
         if (!isPublicAddressActive) {
             try {
-                // Request pristine, un-processed hardware stream allocations from the operating system
+                // Step 1: Request hardware constraints with adaptive filters enabled
                 const mediaStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
-                        echoCancellation: false,  // CRITICAL: True PA loops must drop echo cancel to bypass processing delay
-                        noiseSuppression: false,  // CRITICAL: Dropping active suppress routines prevents voice clipping
-                        autoGainControl: false,   // Disable automatic software volume adjustments
-                        latency: 0.0              // Hard request for minimal hardware-level execution latency
+                        echoCancellation: true,  // Eradicates speaker feedback loops loops
+                        noiseSuppression: true,  // Strips out static background floor hiss
+                        autoGainControl: true    // Prevents extreme clipping overdrive
                     },
                     video: false
                 });
 
-                // Initialize the execution environment explicitly optimized for real-time interactive routing
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 rawAudioContext = new AudioContextClass({ latencyHint: 'interactive' });
 
-                // Construct structural hardware pipe linkages
+                // Step 2: Establish the audio graph nodes
                 microphoneStreamNode = rawAudioContext.createMediaStreamSource(mediaStream);
+                highPassFilterNode = rawAudioContext.createBiquadFilter();
+                lowPassFilterNode = rawAudioContext.createBiquadFilter();
+                dynamicCompressorNode = rawAudioContext.createDynamicsCompressor();
                 volumeGainNode = rawAudioContext.createGain();
 
-                // Connect initial value tracking
+                // Step 3: Configure Human Vocal Bandpass Parameters (300Hz to 3000Hz)
+                highPassFilterNode.type = "highpass";
+                highPassFilterNode.frequency.setValueAtTime(300, rawAudioContext.currentTime); // Cuts out room rumbles
+
+                lowPassFilterNode.type = "lowpass";
+                lowPassFilterNode.frequency.setValueAtTime(3000, rawAudioContext.currentTime); // Cuts out high-pitched screeching feedback
+
+                // Step 4: Configure Studio Dynamics Compressor to flatten sound peaks
+                dynamicCompressorNode.threshold.setValueAtTime(-24, rawAudioContext.currentTime); // Clamps spikes
+                dynamicCompressorNode.knee.setValueAtTime(30, rawAudioContext.currentTime);       // Smooth transition curves
+                dynamicCompressorNode.ratio.setValueAtTime(12, rawAudioContext.currentTime);      // Aggressive protection clamp
+                dynamicCompressorNode.attack.setValueAtTime(0.003, rawAudioContext.currentTime);  // Fast action engagement
+                dynamicCompressorNode.release.setValueAtTime(0.25, rawAudioContext.currentTime);  // Release hold metric
+
+                // Set initial volume
                 const currentSliderValue = document.getElementById('volumeGainSlider').value;
                 volumeGainNode.gain.setValueAtTime(currentSliderValue / 100, rawAudioContext.currentTime);
 
-                // --- DIRECT HARDWARE PIPELINE HANDSHAKE ---
-                // Mic Input -> Volume Control -> Hardware Audio Output Speaker
-                microphoneStreamNode.connect(volumeGainNode);
+                // Step 5: Route the anti-noise network path
+                // Mic -> HighPass -> LowPass -> Compressor -> Gain -> Output
+                microphoneStreamNode.connect(highPassFilterNode);
+                highPassFilterNode.connect(lowPassFilterNode);
+                lowPassFilterNode.connect(dynamicCompressorNode);
+                dynamicCompressorNode.connect(volumeGainNode);
                 volumeGainNode.connect(rawAudioContext.destination);
 
                 isPublicAddressActive = true;
                 actionButton.textContent = "माइक बंद";
                 actionButton.classList.add('active');
-                statusBadge.textContent = "स्थिति: लाइव (ON AIR)";
+                statusBadge.textContent = "स्थिति: लाइव (CLEAN AUDIO)";
                 statusBadge.style.borderColor = "var(--primary)";
                 statusBadge.style.color = "var(--primary)";
 
             } catch (error) {
-                console.error("Microphone hardware configuration failed: ", error);
-                alert("माइक्रोफोन अनुमति की आवश्यकता है (Permission Denied).");
+                console.error("Audio engine routing failure: ", error);
+                alert("माइक्रोफोन एक्सेस की आवश्यकता है।");
             }
         } else {
-            // Securely tear down the operational audio pipe
+            // Disconnect clean audio chain paths
             if (microphoneStreamNode) microphoneStreamNode.disconnect();
+            if (highPassFilterNode) highPassFilterNode.disconnect();
+            if (lowPassFilterNode) lowPassFilterNode.disconnect();
+            if (dynamicCompressorNode) dynamicCompressorNode.disconnect();
             if (volumeGainNode) volumeGainNode.disconnect();
             if (rawAudioContext) {
                 await rawAudioContext.close();
@@ -199,17 +221,14 @@
             actionButton.classList.remove('active');
             statusBadge.textContent = "स्थिति: बंद (Offline)";
             statusBadge.style.borderColor = "var(--border)";
-            statusBadge.style.color = "#94a3b8";
+            statusBadge.style.color = "#64748b";
         }
     }
 
     function adjustSystemLoudness(sliderValue) {
         document.getElementById('volumeDisplayValue').textContent = sliderValue + "%";
-        
-        // Dynamically adjust gain parameters on the active hardware thread safely
         if (rawAudioContext && volumeGainNode && isPublicAddressActive) {
-            const calculatedGainRatio = sliderValue / 100;
-            volumeGainNode.gain.setValueAtTime(calculatedGainRatio, rawAudioContext.currentTime);
+            volumeGainNode.gain.setValueAtTime(sliderValue / 100, rawAudioContext.currentTime);
         }
     }
 </script>
