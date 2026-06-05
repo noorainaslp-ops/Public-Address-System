@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HearLink Pro PA - Anti-Feedback Engine</title>
+    <title>HearLink PA - Hybrid Audio Bridge</title>
     <style>
         :root {
-            --bg: #0b0f19;
-            --card-bg: #151f32;
+            --bg: #090d16;
+            --card-bg: #111a2e;
             --text: #f8fafc;
-            --primary: #10b981;
+            --primary: #3b82f6;
+            --success: #10b981;
             --danger: #ef4444;
-            --border: #24334d;
+            --border: #1e293b;
         }
         body {
             font-family: system-ui, -apple-system, sans-serif;
@@ -29,45 +30,68 @@
         .pa-container {
             background: var(--card-bg);
             border: 2px solid var(--border);
-            border-radius: 28px;
-            padding: 30px;
+            border-radius: 24px;
+            padding: 25px;
             width: 90%;
-            max-width: 400px;
+            max-width: 420px;
             box-sizing: border-box;
             text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
         }
         .app-title {
-            font-size: 1.6rem;
+            font-size: 1.5rem;
             font-weight: 900;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             color: var(--primary);
         }
         .app-subtitle {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #64748b;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
+        .mode-box {
+            background: #090d16;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        .mode-title {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #94a3b8;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin: 8px 0;
+            cursor: pointer;
+        }
         .mic-btn {
-            width: 140px;
-            height: 140px;
-            border-radius: 50%;
+            width: 100%;
+            padding: 16px;
+            border-radius: 14px;
             border: none;
             background: var(--danger);
             color: white;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 800;
             cursor: pointer;
             outline: none;
-            transition: all 0.2s ease;
-            margin-bottom: 35px;
-            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            transition: background 0.15s;
+            margin-bottom: 25px;
         }
         .mic-btn.active {
-            background: var(--primary);
-            box-shadow: 0 0 0 20px rgba(16, 185, 129, 0.15);
+            background: var(--success);
         }
         .slider-container {
             margin: 20px 0;
@@ -77,8 +101,8 @@
             display: flex;
             justify-content: space-between;
             font-weight: 700;
-            font-size: 0.95rem;
-            margin-bottom: 8px;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
             color: #94a3b8;
         }
         .vol-slider {
@@ -87,29 +111,28 @@
             appearance: none;
             height: 10px;
             border-radius: 5px;
-            background: #0f172a;
+            background: #090d16;
             outline: none;
             cursor: pointer;
         }
         .vol-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             background: var(--primary);
             cursor: pointer;
         }
         .status-badge {
             display: inline-block;
-            padding: 6px 16px;
+            padding: 6px 14px;
             border-radius: 20px;
-            background: #0b0f19;
-            font-size: 0.85rem;
+            background: #090d16;
+            font-size: 0.8rem;
             font-weight: 700;
             color: #64748b;
             border: 1px solid var(--border);
-            margin-top: 10px;
         }
     </style>
 </head>
@@ -117,13 +140,25 @@
 
     <div class="pa-container">
         <div class="app-title">पब्लिक एड्रेस सिस्टम</div>
-        <div class="app-subtitle">Anti-Feedback Pro Engine</div>
+        <div class="app-subtitle">Hybrid Wireless Audio Bridge</div>
         
-        <button id="micToggleButton" class="mic-btn" onclick="togglePublicAddressEngine()">माइक चालू</button>
+        <div class="mode-box">
+            <div class="mode-title">हार्डवेयर रूटिंग चयन (Hardware Path)</div>
+            <label class="radio-label">
+                <input type="radio" name="hardwareRoute" value="bt-to-phone" checked onchange="handleRouteShift()">
+                    🎙️ ब्लूटूथ माइक ➔ 🔊 फोन स्पीकर
+            </label>
+            <label class="radio-label">
+                <input type="radio" name="hardwareRoute" value="phone-to-bt" onchange="handleRouteShift()">
+                    🎙️ फोन माइक ➔ 🔊 ब्लूटूथ हेडफोन
+            </label>
+        </div>
+        
+        <button id="micToggleButton" class="mic-btn" onclick="togglePublicAddressEngine()">सिस्टम चालू करें</button>
         
         <div class="slider-container">
             <div class="slider-label">
-                <span>आवाज़ नियंत्रण (Volume)</span>
+                <span>आवाज़ नियंत्रण (Loudness)</span>
                 <span id="volumeDisplayValue">100%</span>
             </div>
             <input type="range" id="volumeGainSlider" class="vol-slider" min="0" max="150" value="100" oninput="adjustSystemLoudness(this.value)">
@@ -139,6 +174,7 @@
     let highPassFilterNode = null;
     let dynamicCompressorNode = null;
     let volumeGainNode = null;
+    let currentMediaStream = null;
     let isPublicAddressActive = false;
 
     async function togglePublicAddressEngine() {
@@ -147,12 +183,12 @@
 
         if (!isPublicAddressActive) {
             try {
-                // Step 1: Request hardware constraints with adaptive filters enabled
-                const mediaStream = await navigator.mediaDevices.getUserMedia({
+                // Request a hands-free communication stream profile to force low-latency SCO processing hooks
+                currentMediaStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
-                        echoCancellation: true,  // Eradicates speaker feedback loops loops
-                        noiseSuppression: true,  // Strips out static background floor hiss
-                        autoGainControl: true    // Prevents extreme clipping overdrive
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
                     },
                     video: false
                 });
@@ -160,33 +196,31 @@
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 rawAudioContext = new AudioContextClass({ latencyHint: 'interactive' });
 
-                // Step 2: Establish the audio graph nodes
-                microphoneStreamNode = rawAudioContext.createMediaStreamSource(mediaStream);
+                microphoneStreamNode = rawAudioContext.createMediaStreamSource(currentMediaStream);
                 highPassFilterNode = rawAudioContext.createBiquadFilter();
                 lowPassFilterNode = rawAudioContext.createBiquadFilter();
                 dynamicCompressorNode = rawAudioContext.createDynamicsCompressor();
                 volumeGainNode = rawAudioContext.createGain();
 
-                // Step 3: Configure Human Vocal Bandpass Parameters (300Hz to 3000Hz)
+                // Human Vocal Bandpass Filtering (300Hz - 3400Hz)
                 highPassFilterNode.type = "highpass";
-                highPassFilterNode.frequency.setValueAtTime(300, rawAudioContext.currentTime); // Cuts out room rumbles
+                highPassFilterNode.frequency.setValueAtTime(300, rawAudioContext.currentTime);
 
                 lowPassFilterNode.type = "lowpass";
-                lowPassFilterNode.frequency.setValueAtTime(3000, rawAudioContext.currentTime); // Cuts out high-pitched screeching feedback
+                lowPassFilterNode.frequency.setValueAtTime(3400, rawAudioContext.currentTime);
 
-                // Step 4: Configure Studio Dynamics Compressor to flatten sound peaks
-                dynamicCompressorNode.threshold.setValueAtTime(-24, rawAudioContext.currentTime); // Clamps spikes
-                dynamicCompressorNode.knee.setValueAtTime(30, rawAudioContext.currentTime);       // Smooth transition curves
-                dynamicCompressorNode.ratio.setValueAtTime(12, rawAudioContext.currentTime);      // Aggressive protection clamp
-                dynamicCompressorNode.attack.setValueAtTime(0.003, rawAudioContext.currentTime);  // Fast action engagement
-                dynamicCompressorNode.release.setValueAtTime(0.25, rawAudioContext.currentTime);  // Release hold metric
+                // ZERO-RELEASE DYNAMICS COMPRESSOR:
+                // Acts purely as an anti-shriek safety barrier without attenuating trailing speech words
+                dynamicCompressorNode.threshold.setValueAtTime(-3, rawAudioContext.currentTime);  // High safety ceiling
+                dynamicCompressorNode.knee.setValueAtTime(10, rawAudioContext.currentTime);
+                dynamicCompressorNode.ratio.setValueAtTime(20, rawAudioContext.currentTime);      // Instant hard clamp on spikes
+                dynamicCompressorNode.attack.setValueAtTime(0.001, rawAudioContext.currentTime); // Reactive 1ms engagement
+                dynamicCompressorNode.release.setValueAtTime(0.000, rawAudioContext.currentTime); // DROPPED TO ZERO: Restores full volume instantly
 
-                // Set initial volume
                 const currentSliderValue = document.getElementById('volumeGainSlider').value;
                 volumeGainNode.gain.setValueAtTime(currentSliderValue / 100, rawAudioContext.currentTime);
 
-                // Step 5: Route the anti-noise network path
-                // Mic -> HighPass -> LowPass -> Compressor -> Gain -> Output
+                // Pipe Linkage Connection Graph
                 microphoneStreamNode.connect(highPassFilterNode);
                 highPassFilterNode.connect(lowPassFilterNode);
                 lowPassFilterNode.connect(dynamicCompressorNode);
@@ -194,34 +228,52 @@
                 volumeGainNode.connect(rawAudioContext.destination);
 
                 isPublicAddressActive = true;
-                actionButton.textContent = "माइक बंद";
+                actionButton.textContent = "सिस्टम बंद करें";
                 actionButton.classList.add('active');
-                statusBadge.textContent = "स्थिति: लाइव (CLEAN AUDIO)";
-                statusBadge.style.borderColor = "var(--primary)";
-                statusBadge.style.color = "var(--primary)";
+                statusBadge.textContent = "स्थिति: लाइव (ON AIR)";
+                statusBadge.style.borderColor = "var(--success)";
+                statusBadge.style.color = "var(--success)";
 
             } catch (error) {
-                console.error("Audio engine routing failure: ", error);
-                alert("माइक्रोफोन एक्सेस की आवश्यकता है।");
+                console.error("Audio pipeline initialization failed: ", error);
+                alert("माइक्रोफोन अनुमति प्रदान करें (Permission Denied).");
             }
         } else {
-            // Disconnect clean audio chain paths
-            if (microphoneStreamNode) microphoneStreamNode.disconnect();
-            if (highPassFilterNode) highPassFilterNode.disconnect();
-            if (lowPassFilterNode) lowPassFilterNode.disconnect();
-            if (dynamicCompressorNode) dynamicCompressorNode.disconnect();
-            if (volumeGainNode) volumeGainNode.disconnect();
-            if (rawAudioContext) {
-                await rawAudioContext.close();
-                rawAudioContext = null;
-            }
+            shutdownPAEngine();
+        }
+    }
 
-            isPublicAddressActive = false;
-            actionButton.textContent = "माइक चालू";
-            actionButton.classList.remove('active');
-            statusBadge.textContent = "स्थिति: बंद (Offline)";
-            statusBadge.style.borderColor = "var(--border)";
-            statusBadge.style.color = "#64748b";
+    function shutdownPAEngine() {
+        const actionButton = document.getElementById('micToggleButton');
+        const statusBadge = document.getElementById('statusBadgeDisplay');
+
+        if (microphoneStreamNode) microphoneStreamNode.disconnect();
+        if (highPassFilterNode) highPassFilterNode.disconnect();
+        if (lowPassFilterNode) lowPassFilterNode.disconnect();
+        if (dynamicCompressorNode) dynamicCompressorNode.disconnect();
+        if (volumeGainNode) volumeGainNode.disconnect();
+        
+        if (currentMediaStream) {
+            currentMediaStream.getTracks().forEach(track => track.stop());
+        }
+        if (rawAudioContext) {
+            rawAudioContext.close();
+            rawAudioContext = null;
+        }
+
+        isPublicAddressActive = false;
+        actionButton.textContent = "सिस्टम चालू करें";
+        actionButton.classList.remove('active');
+        statusBadge.textContent = "स्थिति: बंद (Offline)";
+        statusBadge.style.borderColor = "var(--border)";
+        statusBadge.style.color = "#64748b";
+    }
+
+    function handleRouteShift() {
+        // If routing modes are toggled during live operation, restart the engine cleanly to sync hardware flags
+        if (isPublicAddressActive) {
+            shutdownPAEngine();
+            togglePublicAddressEngine();
         }
     }
 
