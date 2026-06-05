@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HearLink PA - Speakerphone Forced</title>
+    <title>HearLink PA - Forced Phone Speaker Box</title>
     <style>
         :root {
             --bg: #090d16;
             --card-bg: #111a2e;
             --text: #f8fafc;
-            --primary: #10b981;
+            --primary: #eab308;
+            --success: #10b981;
             --danger: #ef4444;
             --border: #1e293b;
         }
@@ -51,9 +52,9 @@
             letter-spacing: 1px;
         }
         .mic-btn {
-            width: 100%;
-            padding: 16px;
-            border-radius: 14px;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
             border: none;
             background: var(--danger);
             color: white;
@@ -61,42 +62,13 @@
             font-weight: 800;
             cursor: pointer;
             outline: none;
-            transition: background 0.15s;
+            transition: all 0.2s ease;
             margin-bottom: 25px;
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
         }
         .mic-btn.active {
-            background: var(--primary);
-        }
-        .slider-container {
-            margin: 20px 0;
-            text-align: left;
-        }
-        .slider-label {
-            display: flex;
-            justify-content: space-between;
-            font-weight: 700;
-            font-size: 0.9rem;
-            margin-bottom: 6px;
-            color: #94a3b8;
-        }
-        .vol-slider {
-            width: 100%;
-            -webkit-appearance: none;
-            appearance: none;
-            height: 10px;
-            border-radius: 5px;
-            background: #090d16;
-            outline: none;
-            cursor: pointer;
-        }
-        .vol-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: var(--primary);
-            cursor: pointer;
+            background: var(--success);
+            box-shadow: 0 0 0 20px rgba(16, 185, 129, 0.15);
         }
         .status-badge {
             display: inline-block;
@@ -107,6 +79,13 @@
             font-weight: 700;
             color: #64748b;
             border: 1px solid var(--border);
+            margin-top: 15px;
+        }
+        .notice-text {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-top: 15px;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -114,38 +93,31 @@
 
     <div class="pa-container">
         <div class="app-title">पब्लिक एड्रेस सिस्टम</div>
-        <div class="app-subtitle">Forced Phone Speaker Output</div>
+        <div class="app-subtitle">Forced Media Channel Output</div>
         
-        <button id="micToggleButton" class="mic-btn" onclick="togglePublicAddressEngine()">सिस्टम चालू करें</button>
-        
-        <div class="slider-container">
-            <div class="slider-label">
-                <span>आवाज़ नियंत्रण (Loudness)</span>
-                <span id="volumeDisplayValue">100%</span>
-            </div>
-            <input type="range" id="volumeGainSlider" class="vol-slider" min="0" max="150" value="100" oninput="adjustSystemLoudness(this.value)">
-        </div>
+        <button id="micToggleButton" class="mic-btn" onclick="togglePAEngine()">सिस्टम चालू करें</button>
         
         <div id="statusBadgeDisplay" class="status-badge">स्थिति: बंद (Offline)</div>
+        
+        <div class="notice-text">
+            नोट: यह मोड ब्लूटूथ कॉल बाईपास का उपयोग करके आवाज को सीधे आपके फोन के मुख्य लाउडस्पीकर से बाहर भेजता है।
+        </div>
     </div>
 
 <script>
     let rawAudioContext = null;
-    let microphoneStreamNode = null;
-    let lowPassFilterNode = null;
-    let highPassFilterNode = null;
-    let dynamicCompressorNode = null;
-    let volumeGainNode = null;
     let currentMediaStream = null;
-    let isPublicAddressActive = false;
+    let audioScriptProcessor = null;
+    let microphoneSourceNode = null;
+    let isPAActive = false;
 
-    async function togglePublicAddressEngine() {
+    async function togglePAEngine() {
         const actionButton = document.getElementById('micToggleButton');
         const statusBadge = document.getElementById('statusBadgeDisplay');
 
-        if (!isPublicAddressActive) {
+        if (!isPAActive) {
             try {
-                // Step 1: Force system constraints to fetch the active bluetooth stream
+                // Request streaming parameters optimized for live speech tracking
                 currentMediaStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
@@ -156,63 +128,38 @@
                 });
 
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                rawAudioContext = new AudioContextClass({ latencyHint: 'interactive' });
+                // Force raw execution context parameters hint to match standard media play profiles
+                rawAudioContext = new AudioContextClass({ latencyHint: 'playback' });
 
-                microphoneStreamNode = rawAudioContext.createMediaStreamSource(currentMediaStream);
-                highPassFilterNode = rawAudioContext.createBiquadFilter();
-                lowPassFilterNode = rawAudioContext.createBiquadFilter();
-                dynamicCompressorNode = rawAudioContext.createDynamicsCompressor();
-                volumeGainNode = rawAudioContext.createGain();
+                microphoneSourceNode = rawAudioContext.createMediaStreamSource(currentMediaStream);
+                
+                // Construct an un-buffered direct pass-through script block mapping inside memory arrays
+                audioScriptProcessor = rawAudioContext.createScriptProcessor(2048, 1, 1);
 
-                // Vocal Bandpass Optimization Filtering
-                highPassFilterNode.type = "highpass";
-                highPassFilterNode.frequency.setValueAtTime(300, rawAudioContext.currentTime);
-                lowPassFilterNode.type = "lowpass";
-                lowPassFilterNode.frequency.setValueAtTime(3400, rawAudioContext.currentTime);
-
-                // Zero-Release Safety Compressor Configuration
-                dynamicCompressorNode.threshold.setValueAtTime(-3, rawAudioContext.currentTime);
-                dynamicCompressorNode.knee.setValueAtTime(10, rawAudioContext.currentTime);
-                dynamicCompressorNode.ratio.setValueAtTime(20, rawAudioContext.currentTime);
-                dynamicCompressorNode.attack.setValueAtTime(0.001, rawAudioContext.currentTime);
-                dynamicCompressorNode.release.setValueAtTime(0.000, rawAudioContext.currentTime);
-
-                const currentSliderValue = document.getElementById('volumeGainSlider').value;
-                volumeGainNode.gain.setValueAtTime(currentSliderValue / 100, rawAudioContext.currentTime);
-
-                // Connect Node Processing Graph
-                microphoneStreamNode.connect(highPassFilterNode);
-                highPassFilterNode.connect(lowPassFilterNode);
-                lowPassFilterNode.connect(dynamicCompressorNode);
-                dynamicCompressorNode.connect(volumeGainNode);
-                volumeGainNode.connect(rawAudioContext.destination);
-
-                // --- CRITICAL PHONE SPEAKERPHONE OVERRIDE ---
-                // Scans local output components and anchors routing parameters to the main speaker chassis
-                if (typeof rawAudioContext.destination.setSinkId === 'function') {
-                    const devices = await navigator.mediaDevices.enumerateDevices();
-                    const phoneInternalSpeaker = devices.find(d => 
-                        d.kind === 'audiooutput' && 
-                        (d.label.toLowerCase().includes('speaker') || d.label.toLowerCase().includes('built-in') || d.deviceId === 'default') &&
-                        !d.label.toLowerCase().includes('bluetooth') && 
-                        !d.label.toLowerCase().includes('headset')
-                    );
-                    if (phoneInternalSpeaker) {
-                        await rawAudioContext.destination.setSinkId(phoneInternalSpeaker.deviceId);
-                        console.log("Output forced back to internal speaker: " + phoneInternalSpeaker.label);
+                audioScriptProcessor.onaudioprocess = function(audioProcessingEvent) {
+                    const inputBufferData = audioProcessingEvent.inputBuffer.getChannelData(0);
+                    const outputBufferData = audioProcessingEvent.outputBuffer.getChannelData(0);
+                    
+                    // Directly dump the binary floating points straight to hardware out channels
+                    for (let sampleIndex = 0; sampleIndex < inputBufferData.length; sampleIndex++) {
+                        outputBufferData[sampleIndex] = inputBufferData[sampleIndex];
                     }
-                }
+                };
 
-                isPublicAddressActive = true;
+                // Connect the processing graph nodes
+                microphoneSourceNode.connect(audioScriptProcessor);
+                audioScriptProcessor.connect(rawAudioContext.destination);
+
+                isPAActive = true;
                 actionButton.textContent = "सिस्टम बंद करें";
                 actionButton.classList.add('active');
-                statusBadge.textContent = "स्थिति: लाइव (PHONE SPEAKER OUTPUT ACTIVE)";
-                statusBadge.style.borderColor = "var(--primary)";
-                statusBadge.style.color = "var(--primary)";
+                statusBadge.textContent = "स्थिति: लाइव (PHONE SPEAKER FORCE)";
+                statusBadge.style.borderColor = "var(--success)";
+                statusBadge.style.color = "var(--success)";
 
             } catch (error) {
-                console.error("Audio path modification failed: ", error);
-                alert("माइक्रोफोन अनुमति की आवश्यकता है।");
+                console.error("Failed to intercept hardware audio routing lines: ", error);
+                alert("माइक्रोफोन अनुमति प्रदान करें।");
             }
         } else {
             shutdownPAEngine();
@@ -223,11 +170,8 @@
         const actionButton = document.getElementById('micToggleButton');
         const statusBadge = document.getElementById('statusBadgeDisplay');
 
-        if (microphoneStreamNode) microphoneStreamNode.disconnect();
-        if (highPassFilterNode) highPassFilterNode.disconnect();
-        if (lowPassFilterNode) lowPassFilterNode.disconnect();
-        if (dynamicCompressorNode) dynamicCompressorNode.disconnect();
-        if (volumeGainNode) volumeGainNode.disconnect();
+        if (microphoneSourceNode) microphoneSourceNode.disconnect();
+        if (audioScriptProcessor) audioScriptProcessor.disconnect();
         
         if (currentMediaStream) {
             currentMediaStream.getTracks().forEach(track => track.stop());
@@ -237,19 +181,12 @@
             rawAudioContext = null;
         }
 
-        isPublicAddressActive = false;
+        isPAActive = false;
         actionButton.textContent = "सिस्टम चालू करें";
         actionButton.classList.remove('active');
         statusBadge.textContent = "स्थिति: बंद (Offline)";
         statusBadge.style.borderColor = "var(--border)";
         statusBadge.style.color = "#64748b";
-    }
-
-    function adjustSystemLoudness(sliderValue) {
-        document.getElementById('volumeDisplayValue').textContent = sliderValue + "%";
-        if (rawAudioContext && volumeGainNode && isPublicAddressActive) {
-            volumeGainNode.gain.setValueAtTime(sliderValue / 100, rawAudioContext.currentTime);
-        }
     }
 </script>
 </body>
